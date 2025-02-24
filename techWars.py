@@ -13,61 +13,73 @@ items = [
     {'name': 'Bitcurrency Wallets', 'basePrice': {'min': 1000, 'max': 10000}, 'risk': 'medium'},
 ]
 
-#Define marketplaces
+# Define marketplaces with price multipliers and risks
 marketplaces = [
     {
         'name': 'Social Media Black Market',
         'priceMultipliers': {
-            'Social Media Accounts': 1.3,  # Higher price for social media-related items
-            'Zero-Day Exploits': 0.7      # Discounted exploits
+            'Hacked Social Media Accounts': 1.3,
+            'Zero-Day Exploits': 0.7
         },
         'risks': {
-            'lawEnforcement': 0.02,       # Low law enforcement risk
-            'scam': 0.05                  # Moderate scam risk
+            'lawEnforcement': 0.02,
+            'scam': 0.05
         }
     },
     {
         'name': 'Hacker Forum',
         'priceMultipliers': {
-            'Zero-Day Exploits': 1.2,     # Premium on exploits
-            'Stolen Credit Cards': 0.8,   # Discount on credit cards
-            'Net Access': 1.1             # Slight premium on network access
+            'Zero-Day Exploits': 1.2,
+            'Stolen Credit Cards': 0.8,
+            'Bitcurrency Wallets': 1.1
         },
         'risks': {
-            'lawEnforcement': 0.1,        # Higher law enforcement risk
-            'scam': 0.05                  # Moderate scam risk
+            'lawEnforcement': 0.1,
+            'scam': 0.05
         }
     },
     {
         'name': 'DarkNet Auction House',
         'priceMultipliers': {
-            'Zero-Day Exploits': 1.5,     # High demand drives up exploit prices
-            'Stolen Credit Cards': 0.9,   # Slightly discounted credit cards
-            'Bitcurrency Wallets': 1.2    # Premium on cryptocurrency wallets
+            'Zero-Day Exploits': 1.5,
+            'Stolen Credit Cards': 0.9,
+            'Bitcurrency Wallets': 1.2
         },
         'risks': {
-            'lawEnforcement': 0.15,       # High-profile, higher risk
-            'scam': 0.04                  # Slightly lower scam risk
+            'lawEnforcement': 0.15,
+            'scam': 0.04
         }
     },
     {
         'name': 'Cybercrime Bazaar',
-        'priceMultipliers': {},           # No specific price adjustments, standard pricing
+        'priceMultipliers': {},
         'risks': {
-            'lawEnforcement': 0.05,       # Moderate law enforcement risk
-            'scam': 0.05                  # Moderate scam risk
+            'lawEnforcement': 0.05,
+            'scam': 0.05
         }
     },
     {
         'name': 'Malware Emporium',
         'priceMultipliers': {
-            'Zero-Day Exploits': 1.1,     # Slight premium on exploits
-            'Social Media Accounts': 0.8, # Discount on social media accounts
-            'Stolen Credit Cards': 0.7    # Discount on credit cards
+            'Zero-Day Exploits': 1.1,
+            'Hacked Social Media Accounts': 0.8,
+            'Stolen Credit Cards': 0.7
         },
         'risks': {
-            'lawEnforcement': 0.08,       # Moderate law enforcement risk
-            'scam': 0.07                  # Higher scam risk due to specialization
+            'lawEnforcement': 0.08,
+            'scam': 0.07
+        }
+    },
+    {
+        'name': 'Silk Road',
+        'priceMultipliers': {
+            'Bitcurrency Wallets': 1.4,  # High demand for crypto on Silk Road
+            'Stolen Credit Cards': 0.85,  # Slightly discounted due to volume
+            'Zero-Day Exploits': 1.3     # Premium for rare exploits
+        },
+        'risks': {
+            'lawEnforcement': 0.20,       # High risk due to historical notoriety
+            'scam': 0.06                  # Moderate scam risk
         }
     }
 ]
@@ -96,15 +108,22 @@ upgrades = [
 
 # Define event effects
 def marketplace_shutdown(player):
-    """Event: Moves player to first marketplace and clears inventory."""
-    player['location'] = marketplaces[0]
+    """Event: Moves player to a safe marketplace and clears inventory with notification."""
+    original_location = player['location']['name']
+    player['location'] = marketplaces[0]  # Move to Social Media Black Market
     player['inventory'] = {}
-    player['current_prices'] = generate_prices_for_marketplace(marketplaces[0])
-    return "Marketplace shut down! Moved to Social Media Black Market and lost all inventory."
+    player['current_prices'] = generate_prices_for_marketplace(player['location'])
+    return f"ALERT: Agent Cyberstrike raided {original_location}! Your inventory has been confiscated, and you've been forced to flee to {player['location']['name']}."
+
+def law_enforcement_trace(player):
+    """Event: Increases heat due to Agent Cyberstrike's surveillance."""
+    player['heat'] += 20
+    return "WARNING: Agent Cyberstrike has traced your activity! Heat increased by 20%."
 
 # Define events
 events = [
     {'name': 'Marketplace Shutdown', 'probability': 0.05, 'effect': marketplace_shutdown},
+    {'name': 'Law Enforcement Trace', 'probability': 0.02, 'effect': law_enforcement_trace},
 ]
 
 # Helper functions
@@ -162,7 +181,7 @@ def apply_upgrade_effect(player, effect):
 def check_win_lose(player):
     """Check if the game is over and if the player won or lost."""
     if player['heat'] >= 100:
-        return {'over': True, 'win': False, 'message': 'Heat reached 100%. You got caught!'}
+        return {'over': True, 'win': False, 'message': 'Heat reached 100%. Agent Cyberstrike has arrested you!'}
     if player['day'] > player['maxDays']:
         if player['cash'] >= player['debt']:
             return {'over': True, 'win': True, 'message': 'Debt paid off after 30 days! You win!'}
@@ -193,6 +212,7 @@ def display_menu():
     print(Fore.WHITE + "3. MOVE MARKET")
     print(Fore.WHITE + "4. UPGRADES")
     print(Fore.WHITE + "5. END DAY")
+    print(Fore.WHITE + "0. BACK (main menu only)")
 
 # Action functions
 def buy_items(player):
@@ -201,8 +221,8 @@ def buy_items(player):
     for i, item in enumerate(items, 1):
         price = player['current_prices'][item['name']]
         print(f"{i}. {item['name']}: ${price}")
-    choice = input(Fore.CYAN + "> BUY (number or 'back'): " + Style.RESET_ALL).strip()
-    if choice == 'back':
+    choice = input(Fore.CYAN + "> BUY (number or 0 to cancel): " + Style.RESET_ALL).strip()
+    if choice == '0':
         return
     try:
         item_index = int(choice) - 1
@@ -234,8 +254,8 @@ def sell_items(player):
         qty = player['inventory'][item_name]
         price = player['current_prices'][item_name]
         print(f"{i}. {item_name}: {qty} (Sell Price: ${price})")
-    choice = input(Fore.CYAN + "> SELL (number or 'back'): " + Style.RESET_ALL).strip()
-    if choice == 'back':
+    choice = input(Fore.CYAN + "> SELL (number or 0 to cancel): " + Style.RESET_ALL).strip()
+    if choice == '0':
         return
     try:
         item_index = int(choice) - 1
@@ -261,8 +281,8 @@ def move_market(player):
     print(Fore.WHITE + "[MARKETPLACES]")
     for i, m in enumerate(marketplaces, 1):
         print(f"{i}. {m['name']}")
-    choice = input(Fore.CYAN + "> MOVE (number or 'back'): " + Style.RESET_ALL).strip()
-    if choice == 'back':
+    choice = input(Fore.CYAN + "> MOVE (number or 0 to cancel): " + Style.RESET_ALL).strip()
+    if choice == '0':
         return
     try:
         market_index = int(choice) - 1
@@ -288,8 +308,8 @@ def upgrades_menu(player):
     available_upgrades = [u for u in upgrades if u['name'] not in player['upgrades']]
     for i, u in enumerate(available_upgrades, 1):
         print(f"{i}. {u['name']}: ${u['cost']} - {u['description']}")
-    choice = input(Fore.CYAN + "> UPGRADE (number or 'back'): " + Style.RESET_ALL).strip()
-    if choice == 'back':
+    choice = input(Fore.CYAN + "> UPGRADE (number or 0 to cancel): " + Style.RESET_ALL).strip()
+    if choice == '0':
         return
     try:
         upgrade_index = int(choice) - 1
@@ -341,6 +361,8 @@ def game_loop(player):
             upgrades_menu(player)
         elif choice == '5':
             end_day(player)
+        elif choice == '0':
+            break  # Return to main menu or exit submenu
         else:
             print(Fore.RED + "Invalid command")
         result = check_win_lose(player)

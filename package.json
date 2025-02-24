@@ -1,18 +1,20 @@
 {
   "type": "module",
-  "dependencies": {
-    "chalk": "^5.0.0"
-  },
   "name": "techwars",
   "version": "1.0.0",
   "main": "techWars.js",
   "scripts": {
     "test": "jest"
   },
-  "author": "",
-  "license": "ISC",
-  "description": "",
+  "jest": {
+    "testEnvironment": "node",
+    "transform": {}
+  },
+  "dependencies": {
+    "chalk": "^5.0.0"
+  },
   "devDependencies": {
     "jest": "^29.7.0"
   }
 }
+

@@ -1,26 +1,47 @@
-// gameLogic.js
 export const items = [
   { name: 'Stolen Credit Cards', basePrice: { min: 10, max: 50 }, risk: 'high' },
-  { name: 'Zero-Day Exploits', basePrice: { min: 10000, max: 150000 }, risk: 'very high' },
-  { name: 'Net Access', basePrice: { min: 1000, max: 2000 }, risk: 'medium' },
-  { name: 'Botnet Social Media Accounts', basePrice: { min: 5, max: 20 }, risk: 'low' },
-  { name: 'Cryptocurrency Wallets', basePrice: { min: 4000, max: 6000 }, risk: 'high' }
+  { name: 'Zero-Day Exploits', basePrice: { min: 5000, max: 20000 }, risk: 'very high' },
+  { name: 'Hacked Social Media Accounts', basePrice: { min: 5, max: 20 }, risk: 'low' },
+  { name: 'Bitcurrency Wallets', basePrice: { min: 1000, max: 10000 }, risk: 'medium' },
 ];
 
 export const marketplaces = [
-  { name: 'Dark Web Bazaar', priceMultipliers: {}, risks: { lawEnforcement: 0.05, scam: 0.03 } },
-  { name: 'Hacker Forum', priceMultipliers: { 'Zero-Day Exploits': 1.2, 'Stolen Credit Cards': 0.8 }, risks: { lawEnforcement: 0.1, scam: 0.05 } },
-  { name: 'ShadowNet Exchange', priceMultipliers: { 'Zero-Day Exploits': 1.5, 'Botnets': 1.0 }, risks: { lawEnforcement: 0.08, scam: 0.04 } },
-  { name: 'Crypto Black Market', priceMultipliers: { 'Stolen Cryptocurrency': 1.3, 'Malware': 0.9 }, risks: { lawEnforcement: 0.12, scam: 0.06 } },
-  { name: 'DeepWeb Traders Hub', priceMultipliers: { 'Personal Data': 0.7, 'Ransomware': 1.1 }, risks: { lawEnforcement: 0.07, scam: 0.05 } },
-  { name: 'Ghost Market Plaza', priceMultipliers: { 'Zero-Day Exploits': 1.4, 'Stolen Credit Cards': 0.6 }, risks: { lawEnforcement: 0.15, scam: 0.07 } },
-  { name: 'Cipher Underground', priceMultipliers: { 'Botnets': 1.2, 'Personal Data': 0.8 }, risks: { lawEnforcement: 0.09, scam: 0.03 } }
+  {
+    name: 'Social Media Black Market',
+    priceMultipliers: { 'Hacked Social Media Accounts': 1.3, 'Zero-Day Exploits': 0.7 },
+    risks: { lawEnforcement: 0.02, scam: 0.05 }
+  },
+  {
+    name: 'Hacker Forum',
+    priceMultipliers: { 'Zero-Day Exploits': 1.2, 'Stolen Credit Cards': 0.8, 'Bitcurrency Wallets': 1.1 },
+    risks: { lawEnforcement: 0.1, scam: 0.05 }
+  },
+  {
+    name: 'DarkNet Auction House',
+    priceMultipliers: { 'Zero-Day Exploits': 1.5, 'Stolen Credit Cards': 0.9, 'Bitcurrency Wallets': 1.2 },
+    risks: { lawEnforcement: 0.15, scam: 0.04 }
+  },
+  {
+    name: 'Cybercrime Bazaar',
+    priceMultipliers: {},
+    risks: { lawEnforcement: 0.05, scam: 0.05 }
+  },
+  {
+    name: 'Malware Emporium',
+    priceMultipliers: { 'Zero-Day Exploits': 1.1, 'Hacked Social Media Accounts': 0.8, 'Stolen Credit Cards': 0.7 },
+    risks: { lawEnforcement: 0.08, scam: 0.07 }
+  },
+  {
+    name: 'Silk Road',
+    priceMultipliers: { 'Bitcurrency Wallets': 1.4, 'Stolen Credit Cards': 0.85, 'Zero-Day Exploits': 1.3 },
+    risks: { lawEnforcement: 0.20, scam: 0.06 }
+  },
 ];
 
 export const upgrades = [
-  { name: 'Better Encryption', cost: 5000, effect: 'reduceHeat', description: 'Reduces heat by 20%' },
-  { name: 'Fast VPN', cost: 3000, effect: 'reduceTravelTime', description: 'Enables fast travel (no day increment)' },
-  { name: 'Extra Storage', cost: 4000, effect: 'increaseCapacity', description: 'Increases carrying capacity by 10' }
+  { name: 'Better Encryption', cost: 5000, effect: 'reduceHeat', description: 'Reduces current heat by 20' },
+  { name: 'Faster Internet', cost: 2000, effect: 'reduceTravelTime', description: 'Enables fast travel (moving doesn\'t take a day)' },
+  { name: 'Secure Devices', cost: 3000, effect: 'increaseCapacity', description: 'Increases carrying capacity by 10' },
 ];
 
 export const events = [
@@ -28,11 +49,21 @@ export const events = [
     name: 'Marketplace Shutdown',
     probability: 0.05,
     effect: (player) => {
-      player.location = marketplaces[0];
+      const originalLocation = player.location.name;
+      player.location = marketplaces[0]; // Move to Social Media Black Market
       player.inventory = {};
-      return 'Marketplace shut down! Moved to Dark Web Bazaar and lost all inventory.';
+      player.current_prices = getCurrentPrices(player);
+      return `ALERT: Agent Cyberstrike raided ${originalLocation}! Your inventory has been confiscated, and you've been forced to flee to ${player.location.name}.`;
     }
-  }
+  },
+  {
+    name: 'Law Enforcement Trace',
+    probability: 0.02,
+    effect: (player) => {
+      player.heat += 20;
+      return "WARNING: Agent Cyberstrike has traced your activity! Heat increased by 20%.";
+    }
+  },
 ];
 
 export function generateDailyPrices() {
@@ -110,12 +141,14 @@ export function checkEvents(player) {
 }
 
 export function checkWinLose(player) {
-  if (player.heat >= 100) return { over: true, win: false, message: 'Heat reached 100%. You got caught!' };
+  if (player.heat >= 100) {
+    return { over: true, win: false, message: 'Heat reached 100%. Agent Cyberstrike has arrested you!' };
+  }
   if (player.day > player.maxDays) {
     if (player.cash >= player.debt) {
       return { over: true, win: true, message: 'Debt paid off after 30 days! You win!' };
     } else {
-      return { over: true, win: false, message: 'Time’s up! Debt unpaid. You lose!' };
+      return { over: true, win: false, message: "Time's up! Debt unpaid. You lose!" };
     }
   }
   return { over: false };

@@ -1,4 +1,3 @@
-// techWars.js
 import chalk from 'chalk';
 import readline from 'readline';
 import { generateDailyPrices, getCurrentPrices, performBuy, performSell, applyUpgradeEffect, checkEvents, checkWinLose, items, marketplaces, upgrades } from './gameLogic.js';
@@ -9,7 +8,7 @@ const rl = readline.createInterface({
 });
 
 let player = {
-  cash: 2500,
+  cash: 2000,
   debt: 5000,
   heat: 0,
   inventory: {},
@@ -17,12 +16,14 @@ let player = {
   maxDays: 30,
   location: marketplaces[0],
   carryingCapacity: 10,
-  fastTravel: false
+  fastTravel: false,
+  upgrades: []
 };
 
 function displayStatus() {
   console.clear();
   console.log(chalk.white(`[SYSTEM] DAY ${player.day}/${player.maxDays}`));
+  console.log(chalk.red(`[LOCATION] ${player.location.name}`));
   console.log(chalk.green(`[CASH] $${player.cash}`));
   console.log(chalk.red(`[DEBT] $${player.debt}`));
   console.log(chalk.yellow(`[HEAT] ${player.heat}%`));
@@ -34,17 +35,16 @@ function displayStatus() {
       console.log(`  ${item}: ${qty}`);
     }
   }
-  console.log(chalk.white(`[LOCATION] ${player.location.name}`));
-  console.log('-------------------');
+  console.log(chalk.white('-------------------'));
 }
 
 function displayMenu() {
-  console.log('1. BUY ITEMS');
-  console.log('2. SELL ITEMS');
-  console.log('3. MOVE MARKET');
-  console.log('4. UPGRADES');
-  console.log('5. END DAY');
-  rl.question('> COMMAND: ', handleCommand);
+  console.log(chalk.white('1. BUY ITEMS'));
+  console.log(chalk.white('2. SELL ITEMS'));
+  console.log(chalk.white('3. MOVE MARKET'));
+  console.log(chalk.white('4. UPGRADES'));
+  console.log(chalk.white('5. END DAY'));
+  console.log(chalk.white('0. BACK (main menu only)'));
 }
 
 function handleCommand(choice) {
@@ -64,6 +64,8 @@ function handleCommand(choice) {
     case '5':
       endDay();
       break;
+    case '0':
+      break; // Exit submenu or return to main loop
     default:
       console.log(chalk.red('Invalid command'));
       setTimeout(gameLoop, 1000);
@@ -76,24 +78,34 @@ function buyItems() {
   items.forEach((item, index) => {
     console.log(`${index + 1}. ${item.name}: $${prices[item.name]}`);
   });
-  rl.question('> BUY (number or "back"): ', choice => {
-    if (choice === 'back') return gameLoop();
-    const itemIndex = parseInt(choice) - 1;
-    if (itemIndex < 0 || itemIndex >= items.length) {
-      console.log(chalk.red('Invalid selection'));
-      return setTimeout(gameLoop, 1000);
-    }
-    const itemName = items[itemIndex].name;
-    rl.question('> QUANTITY: ', qty => {
-      const quantity = parseInt(qty);
-      if (isNaN(quantity) || quantity <= 0) {
-        console.log(chalk.red('Invalid quantity'));
+  rl.question(chalk.cyan('> BUY (number or 0 to cancel): '), choice => {
+    if (choice === '0') return gameLoop();
+    try {
+      const itemIndex = parseInt(choice) - 1;
+      if (itemIndex < 0 || itemIndex >= items.length) {
+        console.log(chalk.red('Invalid selection'));
         return setTimeout(gameLoop, 1000);
       }
-      const result = performBuy(player, itemName, quantity, prices);
-      console.log(result.success ? chalk.green(`>>> ${result.message} <<<`) : chalk.red(`>>> ${result.message} <<<`));
+      const itemName = items[itemIndex].name;
+      rl.question(chalk.cyan('> QUANTITY: '), qty => {
+        try {
+          const quantity = parseInt(qty);
+          if (isNaN(quantity) || quantity <= 0) {
+            console.log(chalk.red('Invalid quantity'));
+            return setTimeout(gameLoop, 1000);
+          }
+          const result = performBuy(player, itemName, quantity, prices);
+          console.log(result.success ? chalk.green(`>>> ${result.message} <<<`) : chalk.red(`>>> ${result.message} <<<`));
+          setTimeout(gameLoop, 1000);
+        } catch (error) {
+          console.log(chalk.red('Invalid quantity'));
+          setTimeout(gameLoop, 1000);
+        }
+      });
+    } catch (error) {
+      console.log(chalk.red('Invalid selection'));
       setTimeout(gameLoop, 1000);
-    });
+    }
   });
 }
 
@@ -107,72 +119,95 @@ function sellItems() {
   Object.entries(player.inventory).forEach(([item, qty], index) => {
     console.log(`${index + 1}. ${item}: ${qty} (Sell Price: $${prices[item]})`);
   });
-  rl.question('> SELL (number or "back"): ', choice => {
-    if (choice === 'back') return gameLoop();
-    const itemIndex = parseInt(choice) - 1;
-    const inventoryItems = Object.keys(player.inventory);
-    if (itemIndex < 0 || itemIndex >= inventoryItems.length) {
-      console.log(chalk.red('Invalid selection'));
-      return setTimeout(gameLoop, 1000);
-    }
-    const itemName = inventoryItems[itemIndex];
-    rl.question('> QUANTITY: ', qty => {
-      const quantity = parseInt(qty);
-      if (isNaN(quantity) || quantity <= 0) {
-        console.log(chalk.red('Invalid quantity'));
+  rl.question(chalk.cyan('> SELL (number or 0 to cancel): '), choice => {
+    if (choice === '0') return gameLoop();
+    try {
+      const itemIndex = parseInt(choice) - 1;
+      const inventoryItems = Object.keys(player.inventory);
+      if (itemIndex < 0 || itemIndex >= inventoryItems.length) {
+        console.log(chalk.red('Invalid selection'));
         return setTimeout(gameLoop, 1000);
       }
-      const result = performSell(player, itemName, quantity, prices);
-      console.log(result.success ? chalk.green(`>>> ${result.message} <<<`) : chalk.red(`>>> ${result.message} <<<`));
+      const itemName = inventoryItems[itemIndex];
+      rl.question(chalk.cyan('> QUANTITY: '), qty => {
+        try {
+          const quantity = parseInt(qty);
+          if (isNaN(quantity) || quantity <= 0) {
+            console.log(chalk.red('Invalid quantity'));
+            return setTimeout(gameLoop, 1000);
+          }
+          const result = performSell(player, itemName, quantity, prices);
+          console.log(result.success ? chalk.green(`>>> ${result.message} <<<`) : chalk.red(`>>> ${result.message} <<<`));
+          setTimeout(gameLoop, 1000);
+        } catch (error) {
+          console.log(chalk.red('Invalid quantity'));
+          setTimeout(gameLoop, 1000);
+        }
+      });
+    } catch (error) {
+      console.log(chalk.red('Invalid selection'));
       setTimeout(gameLoop, 1000);
-    });
+    }
   });
 }
 
 function moveMarket() {
   console.log(chalk.white('[MARKETPLACES]'));
   marketplaces.forEach((m, index) => {
-    console.log(`${index + 1}. ${m.name}${m.name === player.location.name ? ' (Current)' : ''}`);
+    console.log(`${index + 1}. ${m.name}`);
   });
-  rl.question('> MOVE (number or "back"): ', choice => {
-    if (choice === 'back') return gameLoop();
-    const marketIndex = parseInt(choice) - 1;
-    if (marketIndex < 0 || marketIndex >= marketplaces.length) {
+  rl.question(chalk.cyan('> MOVE (number or 0 to cancel): '), choice => {
+    if (choice === '0') return gameLoop();
+    try {
+      const marketIndex = parseInt(choice) - 1;
+      if (marketIndex < 0 || marketIndex >= marketplaces.length) {
+        console.log(chalk.red('Invalid selection'));
+        return setTimeout(gameLoop, 1000);
+      }
+      if (marketplaces[marketIndex].name === player.location.name) {
+        console.log(chalk.red('Already at this market'));
+        return setTimeout(gameLoop, 1000);
+      }
+      player.location = marketplaces[marketIndex];
+      player.current_prices = getCurrentPrices(player);
+      if (!player.fastTravel) player.day++;
+      console.log(chalk.green(`Moved to ${player.location.name}`));
+      checkDayEvents();
+    } catch (error) {
       console.log(chalk.red('Invalid selection'));
-      return setTimeout(gameLoop, 1000);
+      setTimeout(gameLoop, 1000);
     }
-    if (marketplaces[marketIndex].name === player.location.name) {
-      console.log(chalk.red('Already at this market'));
-      return setTimeout(gameLoop, 1000);
-    }
-    player.location = marketplaces[marketIndex];
-    if (!player.fastTravel) player.day++;
-    console.log(chalk.green(`Moved to ${player.location.name}`));
-    checkDayEvents();
   });
 }
 
 function upgradesMenu() {
   console.log(chalk.white('[UPGRADES]'));
-  upgrades.forEach((u, index) => {
+  const availableUpgrades = upgrades.filter(u => !player.upgrades.includes(u.name));
+  availableUpgrades.forEach((u, index) => {
     console.log(`${index + 1}. ${u.name}: $${u.cost} - ${u.description}`);
   });
-  rl.question('> UPGRADE (number or "back"): ', choice => {
-    if (choice === 'back') return gameLoop();
-    const upgradeIndex = parseInt(choice) - 1;
-    if (upgradeIndex < 0 || upgradeIndex >= upgrades.length) {
+  rl.question(chalk.cyan('> UPGRADE (number or 0 to cancel): '), choice => {
+    if (choice === '0') return gameLoop();
+    try {
+      const upgradeIndex = parseInt(choice) - 1;
+      if (upgradeIndex < 0 || upgradeIndex >= availableUpgrades.length) {
+        console.log(chalk.red('Invalid selection'));
+        return setTimeout(gameLoop, 1000);
+      }
+      const upgrade = availableUpgrades[upgradeIndex];
+      if (player.cash < upgrade.cost) {
+        console.log(chalk.red('Insufficient funds'));
+        return setTimeout(gameLoop, 1000);
+      }
+      player.cash -= upgrade.cost;
+      player.upgrades.push(upgrade.name);
+      applyUpgradeEffect(player, upgrade.effect);
+      console.log(chalk.green(`Purchased ${upgrade.name}`));
+      setTimeout(gameLoop, 1000);
+    } catch (error) {
       console.log(chalk.red('Invalid selection'));
-      return setTimeout(gameLoop, 1000);
+      setTimeout(gameLoop, 1000);
     }
-    const upgrade = upgrades[upgradeIndex];
-    if (player.cash < upgrade.cost) {
-      console.log(chalk.red('Insufficient funds'));
-      return setTimeout(gameLoop, 1000);
-    }
-    player.cash -= upgrade.cost;
-    applyUpgradeEffect(player, upgrade.effect);
-    console.log(chalk.green(`Purchased ${upgrade.name}`));
-    setTimeout(gameLoop, 1000);
   });
 }
 
@@ -196,7 +231,8 @@ function checkDayEvents() {
 function gameLoop() {
   displayStatus();
   displayMenu();
+  rl.question(chalk.cyan('> COMMAND: '), handleCommand);
 }
 
-console.log(chalk.red('[Social Media Black Market]'));
+console.log(chalk.red('[Tech Wars]'));
 gameLoop();

@@ -1,6 +1,5 @@
 // techWars.test.js
 import { generateDailyPrices, performBuy, performSell, applyUpgradeEffect, checkEvents, checkWinLose, items, marketplaces, upgrades } from './gameLogic.js';
-
 describe('Tech Wars Game Logic', () => {
   describe('generateDailyPrices', () => {
     it('generates prices within base range for no multipliers', () => {
