@@ -4,6 +4,8 @@ Tech Wars is a text-based game where players engage in a simulated underground m
 
 **Objective**: Pay off your $5000 debt within 30 days while managing your cash, inventory, and "heat" level (risk of getting caught).
 
+![image](https://github.com/user-attachments/assets/a5013f3c-74e3-491f-b66c-9288b55a85c8)  
+
 ---
 
 ## Table of Contents
@@ -139,7 +141,7 @@ After selecting **"1. BUY ITEMS"**, you'll see a list of available items with th
 5. Bitcoin Currency Wallets: $4507
 > BUY (number or 'back'): 1
 ```
-
+![image](https://github.com/user-attachments/assets/29644c4d-acbe-45ee-9a30-199b9cfafee8)
 - **Choosing an Item**: Enter the number "1" to buy Stolen Credit Cards.
 - **Specifying Quantity**: You'll then be prompted to enter the quantity (e.g., "2").
 - **Transaction Outcome**: The game will update your cash, inventory, and heat level based on the transaction.
