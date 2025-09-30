@@ -1,381 +1,304 @@
 import random
-import colorama
-from colorama import Fore, Style
+import os
+from colorama import init, Fore, Style
 
-# Initialize colorama for colored console output
-colorama.init()
+init(autoreset=True)  # Initialize colorama
 
-# Define items with base prices and risk levels
+# Game data
 items = [
-    {'name': 'Stolen Credit Cards', 'basePrice': {'min': 10, 'max': 50}, 'risk': 'high'},
-    {'name': 'Zero-Day Exploits', 'basePrice': {'min': 5000, 'max': 20000}, 'risk': 'very high'},
-    {'name': 'Hacked Social Media Accounts', 'basePrice': {'min': 5, 'max': 20}, 'risk': 'low'},
-    {'name': 'Bitcurrency Wallets', 'basePrice': {'min': 1000, 'max': 10000}, 'risk': 'medium'},
+    {"name": "Zero-Day Exploit", "base_price": 1500, "var": 0.5},
+    {"name": "Ransomware Kit", "base_price": 800, "var": 0.4},
+    {"name": "Phishing Template", "base_price": 200, "var": 0.3},
+    {"name": "DDoS Bot", "base_price": 500, "var": 0.35},
+    {"name": "Keylogger", "base_price": 100, "var": 0.25},
+    {"name": "SQL Injection Tool", "base_price": 300, "var": 0.3},
+    {"name": "xAI Backdoor", "base_price": 2000, "var": 0.6},
+    {"name": "Crypto Wallet Cracker", "base_price": 1200, "var": 0.45}
 ]
 
-# Define marketplaces with price multipliers and risks
 marketplaces = [
-    {
-        'name': 'Social Media Black Market',
-        'priceMultipliers': {
-            'Hacked Social Media Accounts': 1.3,
-            'Zero-Day Exploits': 0.7
-        },
-        'risks': {
-            'lawEnforcement': 0.02,
-            'scam': 0.05
-        }
-    },
-    {
-        'name': 'Hacker Forum',
-        'priceMultipliers': {
-            'Zero-Day Exploits': 1.2,
-            'Stolen Credit Cards': 0.8,
-            'Bitcurrency Wallets': 1.1
-        },
-        'risks': {
-            'lawEnforcement': 0.1,
-            'scam': 0.05
-        }
-    },
-    {
-        'name': 'DarkNet Auction House',
-        'priceMultipliers': {
-            'Zero-Day Exploits': 1.5,
-            'Stolen Credit Cards': 0.9,
-            'Bitcurrency Wallets': 1.2
-        },
-        'risks': {
-            'lawEnforcement': 0.15,
-            'scam': 0.04
-        }
-    },
-    {
-        'name': 'Cybercrime Bazaar',
-        'priceMultipliers': {},
-        'risks': {
-            'lawEnforcement': 0.05,
-            'scam': 0.05
-        }
-    },
-    {
-        'name': 'Malware Emporium',
-        'priceMultipliers': {
-            'Zero-Day Exploits': 1.1,
-            'Hacked Social Media Accounts': 0.8,
-            'Stolen Credit Cards': 0.7
-        },
-        'risks': {
-            'lawEnforcement': 0.08,
-            'scam': 0.07
-        }
-    },
-    {
-        'name': 'Silk Road',
-        'priceMultipliers': {
-            'Bitcurrency Wallets': 1.4,  # High demand for crypto on Silk Road
-            'Stolen Credit Cards': 0.85,  # Slightly discounted due to volume
-            'Zero-Day Exploits': 1.3     # Premium for rare exploits
-        },
-        'risks': {
-            'lawEnforcement': 0.20,       # High risk due to historical notoriety
-            'scam': 0.06                  # Moderate scam risk
-        }
-    }
+    {"name": "Dark Web Forum"},
+    {"name": "Zero-Day Bazaar"},
+    {"name": "Phishing Nets"},
+    {"name": "Exploit Underground"},
+    {"name": "Botnet Hive"}
 ]
 
-# Define upgrades with costs and effects
 upgrades = [
-    {
-        'name': 'Better Encryption',
-        'cost': 5000,
-        'effect': 'reduceHeat',
-        'description': 'Reduces current heat by 20'
-    },
-    {
-        'name': 'Faster Internet',
-        'cost': 2000,
-        'effect': 'reduceTravelTime',
-        'description': 'Enables fast travel (moving doesn\'t take a day)'
-    },
-    {
-        'name': 'Secure Devices',
-        'cost': 3000,
-        'effect': 'increaseCapacity',
-        'description': 'Increases carrying capacity by 10'
-    },
+    {"name": "Fast Travel", "cost": 1000, "description": "Travel without advancing the day", "effect": {"type": "fastTravel", "value": True}},
+    {"name": "Extra Bag Space", "cost": 800, "description": "Increase carrying capacity by 5", "effect": {"type": "carryingCapacity", "value": 5}},
+    {"name": "Cool Down", "cost": 500, "description": "Reduce heat by 3%", "effect": {"type": "reduceHeat", "value": 3}}
 ]
 
-# Define event effects
-def marketplace_shutdown(player):
-    """Event: Moves player to a safe marketplace and clears inventory with notification."""
-    original_location = player['location']['name']
-    player['location'] = marketplaces[0]  # Move to Social Media Black Market
-    player['inventory'] = {}
-    player['current_prices'] = generate_prices_for_marketplace(player['location'])
-    return f"ALERT: Agent Cyberstrike raided {original_location}! Your inventory has been confiscated, and you've been forced to flee to {player['location']['name']}."
+price_cache = {}
 
-def law_enforcement_trace(player):
-    """Event: Increases heat due to Agent Cyberstrike's surveillance."""
-    player['heat'] += 20
-    return "WARNING: Agent Cyberstrike has traced your activity! Heat increased by 20%."
+def clear_screen():
+    os.system('cls' if os.name == 'nt' else 'clear')
 
-# Define events
-events = [
-    {'name': 'Marketplace Shutdown', 'probability': 0.05, 'effect': marketplace_shutdown},
-    {'name': 'Law Enforcement Trace', 'probability': 0.02, 'effect': law_enforcement_trace},
-]
+def get_current_prices(player):
+    day = player['day']
+    loc_name = player['location']['name']
+    city_idx = next(i for i, m in enumerate(marketplaces) if m['name'] == loc_name)
+    key = (day, city_idx)
+    if key not in price_cache:
+        random.seed(day + city_idx * 31)
+        prices_list = []
+        for item in items:
+            base = item['base_price']
+            variation = base * item['var'] * random.uniform(-1, 1)
+            city_mult = 1 + (city_idx - 2) * 0.1
+            inflation = 1 + (day / 300)
+            price = max(10, int((base + variation) * city_mult * inflation))
+            prices_list.append(price)
+        price_cache[key] = dict(zip([i['name'] for i in items], prices_list))
+    return price_cache[key].copy()
 
-# Helper functions
-def generate_prices_for_marketplace(marketplace):
-    """Generate randomized prices for items in a marketplace."""
-    prices = {}
-    for item in items:
-        base = item['basePrice']
-        multiplier = marketplace['priceMultipliers'].get(item['name'], 1)
-        price = int((random.random() * (base['max'] - base['min']) + base['min']) * multiplier)
-        prices[item['name']] = price
-    return prices
+def perform_buy(player, item_name, quantity, prices):
+    if item_name not in prices:
+        return False, 'Invalid item'
+    price = prices[item_name]
+    cost = quantity * price
+    if player['cash'] < cost:
+        return False, 'Not enough cash!'
+    current_load = sum(player['inventory'].values())
+    if current_load + quantity > player['carryingCapacity']:
+        return False, f'Exceeds carrying capacity ({player["carryingCapacity"]})!'
+    player['inventory'][item_name] = player['inventory'].get(item_name, 0) + quantity
+    player['cash'] -= cost
+    player['heat'] += quantity * 2  # Scale for 0-100%
+    player['heat'] = min(100, player['heat'])
+    return True, f'Bought {quantity} x {item_name} for ${cost:,}'
 
-def perform_buy(player, item_name, quantity):
-    """Handle buying items, updating cash, inventory, and heat."""
-    if item_name not in player['current_prices']:
-        return {'success': False, 'message': 'Item not found'}
-    price = player['current_prices'][item_name]
-    total_cost = price * quantity
-    current_items = sum(player['inventory'].values())
-    if player['cash'] < total_cost:
-        return {'success': False, 'message': 'Insufficient funds'}
-    elif current_items + quantity > player['carryingCapacity']:
-        return {'success': False, 'message': 'Carrying capacity exceeded'}
-    else:
-        player['cash'] -= total_cost
-        player['inventory'][item_name] = player['inventory'].get(item_name, 0) + quantity
-        item = next(i for i in items if i['name'] == item_name)
-        heat_increase = {'very high': 10, 'high': 5, 'medium': 3, 'low': 1}.get(item['risk'], 1)
-        player['heat'] += heat_increase
-        return {'success': True, 'message': f"Acquired {quantity} {item_name} for ${total_cost}"}
-
-def perform_sell(player, item_name, quantity):
-    """Handle selling items, updating cash, inventory, and heat."""
+def perform_sell(player, item_name, quantity, prices):
     if item_name not in player['inventory'] or player['inventory'][item_name] < quantity:
-        return {'success': False, 'message': 'Not enough items to sell'}
-    price = player['current_prices'][item_name]
-    total_earned = price * quantity
-    player['cash'] += total_earned
+        return False, 'Not enough in inventory!'
+    price = prices[item_name]
+    revenue = quantity * price
     player['inventory'][item_name] -= quantity
     if player['inventory'][item_name] == 0:
         del player['inventory'][item_name]
-    player['heat'] = max(0, player['heat'] - 2)
-    return {'success': True, 'message': f"Sold {quantity} {item_name} for ${total_earned}"}
+    player['cash'] += revenue
+    player['heat'] = max(0, player['heat'] - quantity * 1)
+    return True, f'Sold {quantity} x {item_name} for ${revenue:,}'
 
 def apply_upgrade_effect(player, effect):
-    """Apply the effect of an upgrade to the player."""
-    if effect == 'reduceHeat':
-        player['heat'] = max(0, player['heat'] - 20)
-    elif effect == 'reduceTravelTime':
+    typ = effect['type']
+    val = effect['value']
+    if typ == 'fastTravel':
         player['fastTravel'] = True
-    elif effect == 'increaseCapacity':
-        player['carryingCapacity'] += 10
+    elif typ == 'carryingCapacity':
+        player['carryingCapacity'] += val
+    elif typ == 'reduceHeat':
+        player['heat'] = max(0, player['heat'] - val)
+
+def check_events(player):
+    messages = []
+    if random.random() < 0.2:
+        r = random.random()
+        if r < 0.25:
+            messages.append('Market crash! All prices drop 20% today.')
+        elif r < 0.5:
+            messages.append('Black market boom! Sell prices up 30%!')
+        elif r < 0.75:
+            player['heat'] = min(100, player['heat'] + 20)
+            messages.append('Cops on your tail! Heat +20%')
+        else:
+            player['cash'] += 200
+            messages.append('Found a loose xAI token! +$200')
+    # Check for bust
+    if player['heat'] >= 100 or random.random() < (player['heat'] / 1000):
+        if player['inventory']:
+            num_types = random.randint(1, min(3, len(player['inventory'])))
+            to_lose = random.sample(list(player['inventory'].keys()), num_types)
+            for key in to_lose:
+                del player['inventory'][key]
+            messages.append(f'BUSTED! Lost {len(to_lose)} random item types from inventory.')
+            player['heat'] = 0
+            player['cash'] = max(0, player['cash'] - 500)  # Fine
+    return messages
 
 def check_win_lose(player):
-    """Check if the game is over and if the player won or lost."""
-    if player['heat'] >= 100:
-        return {'over': True, 'win': False, 'message': 'Heat reached 100%. Agent Cyberstrike has arrested you!'}
+    if player['cash'] >= player['debt']:
+        return {'over': True, 'win': True, 'message': 'CONGRATS! Paid off debt. You win TechWars!\nYou\'ve built an underground hacker empire. What\'s next? Legit pentest firm?'}
     if player['day'] > player['maxDays']:
-        if player['cash'] >= player['debt']:
-            return {'over': True, 'win': True, 'message': 'Debt paid off after 30 days! You win!'}
-        else:
-            return {'over': True, 'win': False, 'message': "Time's up! Debt unpaid. You lose!"}
+        return {'over': True, 'win': False, 'message': 'Game Over! You couldn\'t pay the debt. Back to square one in the cyber underworld.'}
     return {'over': False}
 
-# UI functions
+def check_day_events(player):
+    messages = check_events(player)
+    for msg in messages:
+        print(Fore.YELLOW + f'>>> {msg} <<<')
+    result = check_win_lose(player)
+    if result['over']:
+        print(Fore.GREEN + result['message'] if result['win'] else Fore.RED + result['message'])
+        return True
+    return False
+
 def display_status(player):
-    """Display the player's current status."""
+    clear_screen()
     print(Fore.WHITE + f"[SYSTEM] DAY {player['day']}/{player['maxDays']}")
     print(Fore.RED + f"[LOCATION] {player['location']['name']}")
-    print(Fore.GREEN + f"[CASH] ${player['cash']}")
-    print(Fore.RED + f"[DEBT] ${player['debt']}")
-    print(Fore.YELLOW + f"[HEAT] {player['heat']}%")
-    print(Fore.WHITE + "[INVENTORY]")
-    if not player['inventory']:
-        print("  Empty")
+    print(Fore.GREEN + f"[CASH] ${player['cash']:,.0f}")
+    print(Fore.RED + f"[DEBT] ${player['debt']:,.0f}")
+    print(Fore.YELLOW + f"[HEAT] {player['heat']:.0f}%")
+    print(Fore.WHITE + '[INVENTORY]')
+    if len(player['inventory']) == 0:
+        print(' Empty')
     else:
         for item, qty in player['inventory'].items():
-            print(f"  {item}: {qty}")
-    print(Fore.WHITE + "-------------------")
+            print(f" {item}: {qty}")
+    print(Fore.WHITE + '-------------------')
 
 def display_menu():
-    """Display the main menu options."""
-    print(Fore.WHITE + "1. BUY ITEMS")
-    print(Fore.WHITE + "2. SELL ITEMS")
-    print(Fore.WHITE + "3. MOVE MARKET")
-    print(Fore.WHITE + "4. UPGRADES")
-    print(Fore.WHITE + "5. END DAY")
-    print(Fore.WHITE + "0. BACK (main menu only)")
+    print(Fore.WHITE + '1. BUY ITEMS')
+    print(Fore.WHITE + '2. SELL ITEMS')
+    print(Fore.WHITE + '3. MOVE MARKET')
+    print(Fore.WHITE + '4. UPGRADES')
+    print(Fore.WHITE + '5. END DAY')
+    print(Fore.WHITE + '0. BACK (main menu only)')
 
-# Action functions
 def buy_items(player):
-    """Handle the buy items menu."""
-    print(Fore.WHITE + "[AVAILABLE ITEMS]")
-    for i, item in enumerate(items, 1):
-        price = player['current_prices'][item['name']]
-        print(f"{i}. {item['name']}: ${price}")
-    choice = input(Fore.CYAN + "> BUY (number or 0 to cancel): " + Style.RESET_ALL).strip()
+    prices = get_current_prices(player)
+    print(Fore.WHITE + '[AVAILABLE ITEMS]')
+    for i, item in enumerate(items):
+        print(f"{i+1}. {item['name']}: ${prices[item['name']]:,}")
+    choice = input(Fore.CYAN + '> BUY (number or 0 to cancel): ').strip()
     if choice == '0':
-        return
+        return False
     try:
-        item_index = int(choice) - 1
-        if 0 <= item_index < len(items):
-            item_name = items[item_index]['name']
-            qty = input(Fore.CYAN + "> QUANTITY: " + Style.RESET_ALL).strip()
-            try:
-                quantity = int(qty)
-                if quantity > 0:
-                    result = perform_buy(player, item_name, quantity)
-                    print(Fore.GREEN if result['success'] else Fore.RED + f">>> {result['message']} <<<")
-                else:
-                    print(Fore.RED + "Invalid quantity")
-            except ValueError:
-                print(Fore.RED + "Invalid quantity")
-        else:
-            print(Fore.RED + "Invalid selection")
+        item_idx = int(choice) - 1
+        if not (0 <= item_idx < len(items)):
+            raise ValueError
+        item_name = items[item_idx]['name']
+        qty_str = input(Fore.CYAN + '> QUANTITY: ').strip()
+        quantity = int(qty_str)
+        if quantity <= 0:
+            raise ValueError
+        success, message = perform_buy(player, item_name, quantity, prices)
+        color = Fore.GREEN if success else Fore.RED
+        print(color + f'>>> {message} <<<')
     except ValueError:
-        print(Fore.RED + "Invalid selection")
+        print(Fore.RED + 'Invalid selection')
+    input('\nPress Enter to continue...')
+    return False
 
 def sell_items(player):
-    """Handle the sell items menu."""
-    if not player['inventory']:
-        print(Fore.RED + "No items to sell")
-        return
-    print(Fore.WHITE + "[INVENTORY]")
-    inventory_items = list(player['inventory'].keys())
-    for i, item_name in enumerate(inventory_items, 1):
-        qty = player['inventory'][item_name]
-        price = player['current_prices'][item_name]
-        print(f"{i}. {item_name}: {qty} (Sell Price: ${price})")
-    choice = input(Fore.CYAN + "> SELL (number or 0 to cancel): " + Style.RESET_ALL).strip()
+    if len(player['inventory']) == 0:
+        print(Fore.RED + 'No items to sell')
+        input('\nPress Enter to continue...')
+        return False
+    prices = get_current_prices(player)
+    print(Fore.WHITE + '[INVENTORY]')
+    inv_entries = list(player['inventory'].items())
+    for i, (item, qty) in enumerate(inv_entries):
+        sell_price = prices[item]
+        print(f"{i+1}. {item}: {qty} (Sell Price: ${sell_price:,})")
+    choice = input(Fore.CYAN + '> SELL (number or 0 to cancel): ').strip()
     if choice == '0':
-        return
+        return False
     try:
-        item_index = int(choice) - 1
-        if 0 <= item_index < len(inventory_items):
-            item_name = inventory_items[item_index]
-            qty = input(Fore.CYAN + "> QUANTITY: " + Style.RESET_ALL).strip()
-            try:
-                quantity = int(qty)
-                if quantity > 0:
-                    result = perform_sell(player, item_name, quantity)
-                    print(Fore.GREEN if result['success'] else Fore.RED + f">>> {result['message']} <<<")
-                else:
-                    print(Fore.RED + "Invalid quantity")
-            except ValueError:
-                print(Fore.RED + "Invalid quantity")
-        else:
-            print(Fore.RED + "Invalid selection")
+        item_idx = int(choice) - 1
+        if not (0 <= item_idx < len(inv_entries)):
+            raise ValueError
+        item_name, max_qty = inv_entries[item_idx]
+        qty_str = input(Fore.CYAN + '> QUANTITY: ').strip()
+        quantity = int(qty_str)
+        if quantity <= 0 or quantity > max_qty:
+            raise ValueError
+        success, message = perform_sell(player, item_name, quantity, prices)
+        color = Fore.GREEN if success else Fore.RED
+        print(color + f'>>> {message} <<<')
     except ValueError:
-        print(Fore.RED + "Invalid selection")
+        print(Fore.RED + 'Invalid selection')
+    input('\nPress Enter to continue...')
+    return False
 
 def move_market(player):
-    """Handle moving to a different marketplace."""
-    print(Fore.WHITE + "[MARKETPLACES]")
-    for i, m in enumerate(marketplaces, 1):
-        print(f"{i}. {m['name']}")
-    choice = input(Fore.CYAN + "> MOVE (number or 0 to cancel): " + Style.RESET_ALL).strip()
+    print(Fore.WHITE + '[MARKETPLACES]')
+    for i, market in enumerate(marketplaces):
+        print(f"{i+1}. {market['name']}")
+    choice = input(Fore.CYAN + '> MOVE (number or 0 to cancel): ').strip()
     if choice == '0':
-        return
+        return False
     try:
-        market_index = int(choice) - 1
-        if 0 <= market_index < len(marketplaces):
-            new_location = marketplaces[market_index]
-            if new_location == player['location']:
-                print(Fore.RED + "Already at this market")
-            else:
-                player['location'] = new_location
-                player['current_prices'] = generate_prices_for_marketplace(new_location)
-                if not player['fastTravel']:
-                    player['day'] += 1
-                print(Fore.GREEN + f"Moved to {new_location['name']}")
-                check_day_events(player)
-        else:
-            print(Fore.RED + "Invalid selection")
+        market_idx = int(choice) - 1
+        if not (0 <= market_idx < len(marketplaces)):
+            raise ValueError
+        new_location = marketplaces[market_idx]
+        if new_location['name'] == player['location']['name']:
+            print(Fore.RED + 'Already at this market')
+            input('\nPress Enter to continue...')
+            return False
+        player['location'] = new_location
+        if not player['fastTravel']:
+            player['day'] += 1
+        print(Fore.GREEN + f'Moved to {player["location"]["name"]}')
+        return check_day_events(player)
     except ValueError:
-        print(Fore.RED + "Invalid selection")
+        print(Fore.RED + 'Invalid selection')
+        input('\nPress Enter to continue...')
+        return False
 
 def upgrades_menu(player):
-    """Handle the upgrades menu."""
-    print(Fore.WHITE + "[UPGRADES]")
+    print(Fore.WHITE + '[UPGRADES]')
     available_upgrades = [u for u in upgrades if u['name'] not in player['upgrades']]
-    for i, u in enumerate(available_upgrades, 1):
-        print(f"{i}. {u['name']}: ${u['cost']} - {u['description']}")
-    choice = input(Fore.CYAN + "> UPGRADE (number or 0 to cancel): " + Style.RESET_ALL).strip()
+    if len(available_upgrades) == 0:
+        print(Fore.YELLOW + 'No more upgrades available.')
+        input('\nPress Enter to continue...')
+        return False
+    for i, u in enumerate(available_upgrades):
+        print(f"{i+1}. {u['name']}: ${u['cost']:,} - {u['description']}")
+    choice = input(Fore.CYAN + '> UPGRADE (number or 0 to cancel): ').strip()
     if choice == '0':
-        return
+        return False
     try:
-        upgrade_index = int(choice) - 1
-        if 0 <= upgrade_index < len(available_upgrades):
-            upgrade = available_upgrades[upgrade_index]
-            if player['cash'] >= upgrade['cost']:
-                player['cash'] -= upgrade['cost']
-                player['upgrades'].append(upgrade['name'])
-                apply_upgrade_effect(player, upgrade['effect'])
-                print(Fore.GREEN + f"Purchased {upgrade['name']}")
-            else:
-                print(Fore.RED + "Insufficient funds")
-        else:
-            print(Fore.RED + "Invalid selection")
+        upgrade_idx = int(choice) - 1
+        if not (0 <= upgrade_idx < len(available_upgrades)):
+            raise ValueError
+        upgrade = available_upgrades[upgrade_idx]
+        if player['cash'] < upgrade['cost']:
+            print(Fore.RED + 'Insufficient funds')
+            input('\nPress Enter to continue...')
+            return False
+        player['cash'] -= upgrade['cost']
+        player['upgrades'].append(upgrade['name'])
+        apply_upgrade_effect(player, upgrade['effect'])
+        print(Fore.GREEN + f'Purchased {upgrade["name"]}')
+        input('\nPress Enter to continue...')
+        return False
     except ValueError:
-        print(Fore.RED + "Invalid selection")
+        print(Fore.RED + 'Invalid selection')
+        input('\nPress Enter to continue...')
+        return False
 
 def end_day(player):
-    """End the current day and check for events."""
     player['day'] += 1
-    check_day_events(player)
+    return check_day_events(player)
 
-def check_day_events(player):
-    """Check for and apply random events."""
-    messages = []
-    for event in events:
-        if random.random() < event['probability']:
-            message = event['effect'](player)
-            if message:
-                messages.append(message)
-    for msg in messages:
-        print(Fore.YELLOW + f">>> {msg} <<<")
+def handle_command(player, choice):
+    if choice == '1':
+        return buy_items(player)
+    elif choice == '2':
+        return sell_items(player)
+    elif choice == '3':
+        return move_market(player)
+    elif choice == '4':
+        return upgrades_menu(player)
+    elif choice == '5':
+        return end_day(player)
+    else:
+        print(Fore.RED + 'Invalid command')
+        input('\nPress Enter to continue...')
+        return False
 
-# Game loop
 def game_loop(player):
-    """Main game loop."""
-    while True:
-        print('\033[H\033[J', end='')  # Clear console using ANSI escape code
-        display_status(player)
-        display_menu()
-        choice = input(Fore.CYAN + "> COMMAND: " + Style.RESET_ALL).strip()
-        if choice == '1':
-            buy_items(player)
-        elif choice == '2':
-            sell_items(player)
-        elif choice == '3':
-            move_market(player)
-        elif choice == '4':
-            upgrades_menu(player)
-        elif choice == '5':
-            end_day(player)
-        elif choice == '0':
-            break  # Return to main menu or exit submenu
-        else:
-            print(Fore.RED + "Invalid command")
-        result = check_win_lose(player)
-        if result['over']:
-            if result['win']:
-                print(Fore.GREEN + result['message'])
-            else:
-                print(Fore.RED + result['message'])
-            break
+    display_status(player)
+    display_menu()
+    choice = input(Fore.CYAN + '> COMMAND: ').strip()
+    return handle_command(player, choice)
 
-# Main execution
 if __name__ == "__main__":
-    # Initialize player state
+    print(Fore.RED + '[Tech Wars]')
     player = {
         'cash': 2000,
         'debt': 5000,
@@ -386,7 +309,9 @@ if __name__ == "__main__":
         'location': marketplaces[0],
         'carryingCapacity': 10,
         'fastTravel': False,
-        'upgrades': [],
-        'current_prices': generate_prices_for_marketplace(marketplaces[0]),
+        'upgrades': []
     }
-    game_loop(player)
+    while True:
+        over = game_loop(player)
+        if over:
+            break
